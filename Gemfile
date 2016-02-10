@@ -17,10 +17,6 @@ group :postgres do
   gem 'pg', '~> 0.13'
 end
 
-group :sqlite do
-  gem "sqlite3"
-end
-
 gem 'kaminari'
 gem 'soft_deletion', '~> 0.4'
 gem 'dalli', '~> 2.7.0'
