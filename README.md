@@ -1,5 +1,8 @@
 **Use of this software is subject to important terms and conditions as set forth in the License file**
 
+**Please note that this is a fork of the original Samson, containing the neccessary changes in order to be able to run on Dokku (and Heroku tho' it has not been tested)**
+See [Pull request](https://github.com/cu12/samson/pull/1) for changes and [Gist](https://gist.github.com/cu12/0511ab5eefd8599e4cc0) for steps.
+
 ## Samson
 
 [![Build Status](https://travis-ci.org/zendesk/samson.svg?branch=master)](https://travis-ci.org/zendesk/samson)
