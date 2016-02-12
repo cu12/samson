@@ -1,4 +1,10 @@
 ![](https://github.com/zendesk/samson/raw/master/app/assets/images/logo_light.png)
+**Use of this software is subject to important terms and conditions as set forth in the License file**
+
+**Please note that this is a fork of the original Samson, containing the neccessary changes in order to be able to run on Dokku (and Heroku tho' it has not been tested)**
+See [Pull request](https://github.com/cu12/samson/pull/1) for changes and [Gist](https://gist.github.com/cu12/0511ab5eefd8599e4cc0) for steps.
+
+## Samson
 
 [![Build Status](https://travis-ci.org/zendesk/samson.svg?branch=master)](https://travis-ci.org/zendesk/samson)
 [![Code Climate](https://codeclimate.com/repos/53340bef6956800b9000675c/badges/c7c44f80cff049aef8f7/gpa.svg)](https://codeclimate.com/repos/53340bef6956800b9000675c/feed)
