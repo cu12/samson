@@ -67,8 +67,8 @@ if [[ -z ${DATABASE_DESTROY+x} ]] || [[ "${DATABASE_DESTROY}" = true ]]; then
   COUNTRY_CODE=$(dokku config:get ${APP} SHOP_NEW_COUNTRY_CODE)
   DATE=$(dokku config:get ${APP} SHOP_NEW_MYSQL_DUMP_DATE)
   if [[ -n "${DATE}" ]]; then
-    DATE=$(date "+%Y-%m-%d") )
-    sed 's|production_'${COUNTRY_CODE}'|'${STAGE}-shop'|g' "/database-dumps/production_${COUNTRY_CODE}_${DATE}.sql" | dokku mysql:import ${STAGE}-shop )
+    DATE=$(date "+%Y-%m-%d")
+    sed 's|production_'${COUNTRY_CODE}'|'${STAGE}-shop'|g' "/database-dumps/production_${COUNTRY_CODE}_${DATE}.sql" | dokku mysql:import ${STAGE}-shop
   fi
 fi
 
