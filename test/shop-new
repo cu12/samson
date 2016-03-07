@@ -1,0 +1,69 @@
+#!/bin/bash
+# Create application if it doesn't exists
+if ! dokku apps | egrep -q "^${APP}$"; then
+  dokku apps:create "${APP}"
+fi
+
+# Do not create MySQL container if it already exists
+if ! dokku mysql:list | awk '{ print $1 }' | egrep -q "^${STAGE}-shop$"; then
+  ssh-dokku "export MYSQL_IMAGE_VERSION="5.6"; dokku mysql:create ${STAGE}-shop"
+  dokku mysql:link "${STAGE}-shop" "${APP}" || true
+  dokku mysql:promote "${STAGE}-shop" "${APP}" || true
+fi
+
+# Do not create Redis container if it already exists
+if ! dokku redis:list | awk '{ print $1 }' | egrep -q "^${APP}$"; then
+  dokku redis:create "${APP}"
+  dokku redis:link "${APP}" "${APP}" || true
+fi
+
+# Unlink and remove Elasticsearch container
+if dokku elasticsearch:list | awk '{ print $1 }' | egrep -q "^${APP}$"; then
+  dokku elasticsearch:unlink "${APP}" "${APP}" || true
+  echo "${APP}" | dokku elasticsearch:destroy "${APP}"
+
+  # Create and link elasticsearch container
+  ssh-dokku "export ELASTICSEARCH_IMAGE_VERSION='1.7';dokku elasticsearch:create ${APP}"
+  dokku elasticsearch:link "${APP}" "${APP}"
+fi
+
+# Do not create SQS container if it already exists
+if ! dokku sqs:list | awk '{ print $1 }' | egrep -q "^${STAGE}$"; then
+  dokku sqs:create "${STAGE}"
+  # Add SQS queue and link it to the application
+  dokku sqs:queue:add ${STAGE} ${STAGE} || true
+  dokku sqs:link ${STAGE} ${APP} || true
+fi
+
+# Set MySQL, Redis, Elasticsearch and SQS parameters
+ssh-dokku "export SHOP_NEW_REDIS_URL=\$(dokku config:get ${APP} REDIS_URL); export SHOP_NEW_ELASTICSEARCH_URL=\$(dokku config:get ${APP} ELASTICSEARCH_URL); export SHOP_NEW_DATABASE_URL=\$(dokku config:get "${APP}" DATABASE_URL); export SHOP_NEW_AWS_SQS_ELASTICSEARCH_UPDATE_QUEUE="\$(dokku config:get ${APP} SQS_URL)/${STAGE}"; dokku config:set ${APP}  \$(printenv | egrep '^SHOP_NEW.*=.*$' | tr '\\n' ' ')"
+
+# Set all parameters that are set as environment variables
+dokku config:set ${APP}  $(cat .env | tr '\n' ' ')
+
+# Add Dokku hostkey to known hosts list
+ssh-keyscan -H "${DOKKU_HOST}" > ~/.ssh/known_hosts
+# Set SSH client for non-interactive session
+echo 'Host *\n UserKnownHostsFile ~/.ssh/known_hosts\n StrictHostKeyChecking no\n IdentityFile ~/.ssh-samson/id_rsa' > ~/.ssh/config
+
+# Deploy application
+git remote add dokku dokku@"${DOKKU_HOST}":"${APP}"
+git push -f dokku "${REVISION}":master
+
+# Populate mysql
+if [[ -z ${DATABASE_DESTROY+x} ]] || [[ "${DATABASE_DESTROY}" = true ]]; then
+  COUNTRY_CODE=$(dokku config:get ${APP} SHOP_NEW_COUNTRY_CODE)
+  DATE=$(dokku config:get ${APP} SHOP_NEW_MYSQL_DUMP_DATE)
+  if [[ -n "${DATE}" ]]; then
+    DATE=$(date "+%Y-%m-%d") )
+    sed 's|production_'${COUNTRY_CODE}'|'${STAGE}-shop'|g' "/database-dumps/production_${COUNTRY_CODE}_${DATE}.sql" | dokku mysql:import ${STAGE}-shop )
+  fi
+fi
+
+dokku config:set "${APP}" SHOP_NEW_DATABASE_URL="${SHOP_NEW_DATABASE_URL}"
+dokku elasticsearch:plugin:install ${APP} elasticsearch/marvel/latest
+SHOP_NEW_ELASTICSEARCH_PLUGIN_URL=$(dokku config:get ${APP} SHOP_NEW_ELASTICSEARCH_PLUGIN_URL)
+dokku elasticsearch:plugin:install ${APP} ${SHOP_NEW_ELASTICSEARCH_PLUGIN_URL} foodpanda-extension
+dokku run ${APP} app/console foodpanda:elasticsearch:populate-all
+
+echo "UPDATE foodpanda SET website_address = 'https://${APP}.qab.rocks';" | dokku mysql:connect ${STAGE}-shop
