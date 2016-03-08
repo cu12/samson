@@ -1,8 +1,8 @@
 DOKKU_HOST=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 
-alias dokku='ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /app/.ssh-samson/id_rsa samson@${DOKKU_HOST} dokku "$@"'
+alias dokku='ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /app/.ssh-samson/id_rsa samson@${DOKKU_HOST} dokku'
 
-alias ssh-dokku='ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /app/.ssh-samson/id_rsa -t samson@${DOKKU_HOST} "$@"
+alias ssh-dokku='ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /app/.ssh-samson/id_rsa -t samson@${DOKKU_HOST}'
 
 export APP=${STAGE}-shop-new
 
