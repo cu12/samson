@@ -61,6 +61,7 @@ echo "-----> Deploy application"
 git remote add dokku dokku@"${DOKKU_HOST}":"${APP}"
 git push dokku "${REVISION}":master
 
+DATABASE_DESTROY=$(dokku config:get "${APP}" DATABASE_DESTROY)
 if [ -z ${DATABASE_DESTROY+x} ] || [ "${DATABASE_DESTROY}" = true ]; then
   echo "-----> Import to MySQL database"
   COUNTRY_CODE=$(dokku config:get "${APP}" SHOP_NEW_COUNTRY_CODE)
