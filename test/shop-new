@@ -13,7 +13,7 @@ fi
 
 echo "-----> Create and link MySQL container if necessary"
 if ! dokku mysql:list | awk '{ print $1 }' | egrep -q "^${STAGE}-shop$"; then
-  ssh-dokku "export MYSQL_IMAGE_VERSION="5.6"; dokku mysql:create ${STAGE}-shop"
+  ssh-dokku "export MYSQL_IMAGE_VERSION='5.6'; dokku mysql:create ${STAGE}-shop"
   dokku mysql:link "${STAGE}-shop" "${APP}" || true
   dokku mysql:promote "${STAGE}-shop" "${APP}" || true
 fi
@@ -38,19 +38,19 @@ echo "-----> Create and link SQS container if necessary"
 if ! dokku sqs:list | awk '{ print $1 }' | egrep -q "^${STAGE}$"; then
   dokku sqs:create "${STAGE}"
   # Add SQS queue and link it to the application
-  dokku sqs:queue:add ${STAGE} ${STAGE} || true
-  dokku sqs:link ${STAGE} ${APP} || true
+  dokku sqs:queue:add "${STAGE}" "${STAGE}" || true
+  dokku sqs:link "${STAGE}" "${APP}" || true
 fi
 
 echo "-----> Set application backend parameters"
-ssh-dokku "export SHOP_NEW_REDIS_URL=\$(dokku config:get ${APP} REDIS_URL); export SHOP_NEW_ELASTICSEARCH_URL=\$(dokku config:get ${APP} ELASTICSEARCH_URL); export SHOP_NEW_DATABASE_URL=\$(dokku config:get "${APP}" DATABASE_URL); export SHOP_NEW_AWS_SQS_ELASTICSEARCH_UPDATE_QUEUE=\$(dokku config:get ${APP} SQS_URL)/${STAGE}; dokku config:set ${APP} \$(printenv | egrep '^SHOP_NEW.*=.*$' | tr '\\n' ' ')"
+ssh-dokku "export SHOP_NEW_REDIS_URL=\$(dokku config:get ${APP} REDIS_URL); export SHOP_NEW_ELASTICSEARCH_URL=\$(dokku config:get ${APP} ELASTICSEARCH_URL); export SHOP_NEW_DATABASE_URL=\$(dokku config:get ${APP} DATABASE_URL); export SHOP_NEW_AWS_SQS_ELASTICSEARCH_UPDATE_QUEUE=\$(dokku config:get ${APP} SQS_URL)/${STAGE}; dokku config:set ${APP} \$(printenv | egrep '^SHOP_NEW.*=.*$' | tr '\\n' ' ')"
 
 echo "-----> Set all environment variables coming from Samson"
-dokku config:set ${APP}  $(cat .env | tr '\n' ' ')
+dokku config:set "${APP}"  "$(tr '\n' ' ' < .env)"
 
 echo "-----> Set up SSH environment"
 ssh-keyscan -H "${DOKKU_HOST}" > ~/.ssh/known_hosts
-echo 'Host *\n UserKnownHostsFile ~/.ssh/known_hosts\n StrictHostKeyChecking no\n IdentityFile ~/.ssh-samson/id_rsa' > ~/.ssh/config
+printf 'Host *\n UserKnownHostsFile ~/.ssh/known_hosts\n StrictHostKeyChecking no\n IdentityFile ~/.ssh-samson/id_rsa\n' > ~/.ssh/config
 
 echo "-----> Deploy application"
 git remote add dokku dokku@"${DOKKU_HOST}":"${APP}"
@@ -58,20 +58,20 @@ git push -f dokku "${REVISION}":master
 
 if [ -z ${DATABASE_DESTROY+x} ] || [ "${DATABASE_DESTROY}" = true ]; then
   echo "-----> Import to MySQL database"
-  COUNTRY_CODE=$(dokku config:get ${APP} SHOP_NEW_COUNTRY_CODE)
-  DATE=$(dokku config:get ${APP} SHOP_NEW_MYSQL_DUMP_DATE)
+  COUNTRY_CODE=$(dokku config:get "${APP}" SHOP_NEW_COUNTRY_CODE)
+  DATE=$(dokku config:get "${APP}" SHOP_NEW_MYSQL_DUMP_DATE)
   if [ -n "${DATE}" ]; then
     DATE=$(date "+%Y-%m-%d")
-    sed 's|production_'${COUNTRY_CODE}'|'${STAGE}-shop'|g' "/database-dumps/production_${COUNTRY_CODE}_${DATE}.sql" | dokku mysql:import ${STAGE}-shop
+    sed 's|production_'"${COUNTRY_CODE}"'|'"${STAGE}-shop"'|g' "/database-dumps/production_${COUNTRY_CODE}_${DATE}.sql" | dokku mysql:import "${STAGE}-shop"
   fi
 fi
 
 echo "-----> Install Elasticsearch plugins"
-dokku elasticsearch:plugin:install ${APP} elasticsearch/marvel/latest
-SHOP_NEW_ELASTICSEARCH_PLUGIN_URL=$(dokku config:get ${APP} SHOP_NEW_ELASTICSEARCH_PLUGIN_URL)
-dokku elasticsearch:plugin:install ${APP} ${SHOP_NEW_ELASTICSEARCH_PLUGIN_URL} foodpanda-extension
+dokku elasticsearch:plugin:install "${APP}" elasticsearch/marvel/latest
+SHOP_NEW_ELASTICSEARCH_PLUGIN_URL=$(dokku config:get "${APP}" SHOP_NEW_ELASTICSEARCH_PLUGIN_URL)
+dokku elasticsearch:plugin:install "${APP}" "${SHOP_NEW_ELASTICSEARCH_PLUGIN_URL}" foodpanda-extension
 echo "-----> Populate elasticsearch"
-dokku run ${APP} app/console foodpanda:elasticsearch:populate-all
+dokku run "${APP}" app/console foodpanda:elasticsearch:populate-all
 
 echo "-----> Finalizing database"
-echo "UPDATE foodpanda SET website_address = 'https://${APP}.qab.rocks';" | dokku mysql:connect ${STAGE}-shop
+echo "UPDATE foodpanda SET website_address = 'https://${APP}.qab.rocks';" | dokku mysql:connect "${STAGE}-shop"
