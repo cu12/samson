@@ -45,7 +45,7 @@ if ! dokku sqs:list | awk '{ print $1 }' | egrep -q "^${STAGE}$"; then
 fi
 
 echo "-----> Set application backend parameters"
-ssh-dokku "export SHOP_NEW_REDIS_URL=\$(dokku config:get ${APP} REDIS_URL); export SHOP_NEW_ELASTICSEARCH_URL=\$(dokku config:get ${APP} ELASTICSEARCH_URL); export SHOP_NEW_DATABASE_URL=\$(dokku config:get ${APP} DATABASE_URL); export SHOP_NEW_AWS_SQS_ELASTICSEARCH_UPDATE_QUEUE=\"$(dokku config:get ${APP} SQS_URL)/${STAGE}"; dokku config:set ${APP} \$(printenv | egrep '^SHOP_NEW.*=.*$' | tr '\\n' ' ' | tr -d '[[:space:]]')"
+ssh-dokku "export SHOP_NEW_REDIS_URL=\$(dokku config:get ${APP} REDIS_URL); export SHOP_NEW_ELASTICSEARCH_URL=\$(dokku config:get ${APP} ELASTICSEARCH_URL); export SHOP_NEW_DATABASE_URL=\$(dokku config:get ${APP} DATABASE_URL); export SHOP_NEW_AWS_SQS_ELASTICSEARCH_UPDATE_QUEUE=\$(dokku config:get ${APP} SQS_URL)/\$(echo ${STAGE}); dokku config:set ${APP} \$(printenv | egrep '^SHOP_NEW.*=.*$' | tr '\\n' ' ' | tr -d '[[:space:]]')"
 
 echo "-----> Set all environment variables coming from Samson"
 dokku config:set "${APP}"  "$(tr '\n' ' ' < .env)"
