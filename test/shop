@@ -1,0 +1,68 @@
+DOKKU_HOST=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+
+alias dokku='ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /app/.ssh-samson/id_rsa samson@${DOKKU_HOST} dokku'
+
+alias ssh-dokku='ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /app/.ssh-samson/id_rsa -t -t samson@${DOKKU_HOST}'
+
+export APP=${STAGE}-shop
+
+echo "-----> Create application if necessary"
+if ! dokku apps | egrep -q "^${APP}$"; then
+  dokku apps:create "${APP}"
+fi
+
+echo "-----> Create and link MySQL container if necessary"
+if ! dokku mysql:list | awk '{ print $1 }' | egrep -q "^${APP}$"; then
+  ssh-dokku "export MYSQL_IMAGE_VERSION='5.6'; dokku mysql:create ${APP}"
+fi
+dokku mysql:link "${APP}" "${APP}" || true
+dokku mysql:promote "${APP}" "${APP}" || true
+
+echo "-----> Create and link Redis container if necessary"
+if ! dokku redis:list | awk '{ print $1 }' | egrep -q "^${APP}$"; then
+  dokku redis:create "${APP}"
+fi
+dokku redis:link "${APP}" "${APP}" || true
+dokku redis:promote "${APP}" "${APP}" || true
+
+echo "-----> Create and link SQS container if necessary"
+if ! dokku sqs:list | awk '{ print $1 }' | egrep -q "^${STAGE}$"; then
+  dokku sqs:create "${STAGE}"
+  # Add SQS queue and link it to the application
+  dokku sqs:queue:add "${STAGE}" "${STAGE}" || true
+fi
+dokku sqs:link "${STAGE}" "${APP}" || true
+
+echo "-----> Set application backend parameters"
+ssh-dokku "export SHOP_REDIS_URL=\$(dokku config:get ${APP} REDIS_URL); export SHOP_DATABASE_URL=\$(dokku config:get ${APP} DATABASE_URL); export SHOP_DATABASE_READ_REPLICA_URL=\$(dokku config:get ${APP} DATABASE_URL); dokku config:set ${APP} \$(printenv | egrep '^SHOP_NEW.*=.*$' | tr '\\n' ' ' | sed 's/ *=/=/g')"
+
+echo "-----> Set all environment variables coming from Samson"
+dokku config:set "${APP}"  "$(tr '\n' ' ' < .env)"
+
+echo "-----> Set up SSH environment"
+ssh-keyscan -H "${DOKKU_HOST}" > ~/.ssh/known_hosts
+printf 'Host *\n UserKnownHostsFile ~/.ssh/known_hosts\n StrictHostKeyChecking no\n IdentityFile ~/.ssh-samson/id_rsa\n' > ~/.ssh/config
+
+echo "-----> Deploy application"
+git remote add dokku dokku@"${DOKKU_HOST}":"${APP}"
+git push dokku "${REVISION}":master
+
+DATABASE_DESTROY=$(dokku config:get "${APP}" DATABASE_DESTROY)
+if [ -z ${DATABASE_DESTROY+x} ] || [ "${DATABASE_DESTROY}" = true ]; then
+  echo "-----> Import to MySQL database"
+  COUNTRY_CODE=$(dokku config:get "${APP}" SHOP_NEW_COUNTRY_CODE)
+  DATE=$(dokku config:get "${APP}" SHOP_NEW_MYSQL_DUMP_DATE)
+  if [ -z "${DATE}" ]; then
+    DATE=$(date "+%Y-%m-%d")
+  fi
+
+  sed 's|production_'"${COUNTRY_CODE}"'|'"${STAGE}-shop"'|g' "/database-dumps/production_${COUNTRY_CODE}_${DATE}.sql" | dokku mysql:import "${STAGE}-shop"
+fi
+
+echo "-----> Generating configuration file"
+dokku run "${APP}" /app/bin/dokku/dokku-init
+
+echo "-----> Running database migrations"
+dokku run "${APP}" ./cli/dbupdate.sh --env="${APPLICATION_ENV}-${SHOP_COUNTRY_CODE}"
+
+ssh-dokku "export SHOP_INTERNAL_API_URL=\$(dokku url ${STAGE}-shop-new); export SHOP_URL=\$(dokku url ${APP}); dokku config:set ${APP} SHOP_INTERNAL_API_URL=${SHOP_INTERNAL_API_URL} SHOP_URL=${SHOP_URL}"
