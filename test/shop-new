@@ -37,6 +37,7 @@ if ! dokku elasticsearch:list | awk '{ print $1 }' | egrep -q "^${APP}$"; then
   ssh-dokku "export ELASTICSEARCH_IMAGE_VERSION='1.7';dokku elasticsearch:create ${APP}"
   dokku elasticsearch:link "${APP}" "${APP}"
 fi
+dokku elasticsearch:promote "${APP}" "${APP}" || true
 
 echo "-----> Create and link SQS container if necessary"
 if ! dokku sqs:list | awk '{ print $1 }' | egrep -q "^${STAGE}$"; then
