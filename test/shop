@@ -64,10 +64,10 @@ if [ -z ${DATABASE_DESTROY+x} ] || [ "${DATABASE_DESTROY}" = true ]; then
 fi
 
 echo "-----> Generating configuration file"
-dokku run "${APP}" /app/bin/dokku/dokku-init
+dokku run "${APP}" ./bin/dokku/dokku-init
 
 echo "-----> Running database migrations"
-dokku run "${APP}" /app/cli/dbupdate.sh --env="${APPLICATION_ENV}"
+dokku run "${APP}" ./cli/dbupdate.sh --env="${APPLICATION_ENV}"
 
 echo "-----> Set up frontend/backend urls"
 SHOP_INTERNAL_API_URL=$(dokku url "${STAGE}-shop-new")
