@@ -1,10 +1,8 @@
-shopt -s expand_aliases
-
 DOKKU_HOST=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 
 alias dokku='ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /app/.ssh-samson/id_rsa samson@${DOKKU_HOST} dokku "$@"'
 
-alias ssh-dokku='ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /app/.ssh-samson/id_rsa -t samson@${DOKKU_HOST} "$@"'
+alias ssh-dokku='ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /app/.ssh-samson/id_rsa -t samson@${DOKKU_HOST} "$@"
 
 export APP=${STAGE}-shop-new
 
@@ -52,13 +50,13 @@ dokku config:set ${APP}  $(cat .env | tr '\n' ' ')
 
 echo "-----> Set up SSH environment"
 ssh-keyscan -H "${DOKKU_HOST}" > ~/.ssh/known_hosts
-echo -e 'Host *\n UserKnownHostsFile ~/.ssh/known_hosts\n StrictHostKeyChecking no\n IdentityFile ~/.ssh-samson/id_rsa' > ~/.ssh/config
+echo 'Host *\n UserKnownHostsFile ~/.ssh/known_hosts\n StrictHostKeyChecking no\n IdentityFile ~/.ssh-samson/id_rsa' > ~/.ssh/config
 
 echo "-----> Deploy application"
 git remote add dokku dokku@"${DOKKU_HOST}":"${APP}"
 git push -f dokku "${REVISION}":master
 
-if [[ -z ${DATABASE_DESTROY+x} ]] || [[ "${DATABASE_DESTROY}" = true ]]; then
+if [ -z ${DATABASE_DESTROY+x} ] || [ "${DATABASE_DESTROY}" = true ]; then
   echo "-----> Import to MySQL database"
   COUNTRY_CODE=$(dokku config:get ${APP} SHOP_NEW_COUNTRY_CODE)
   DATE=$(dokku config:get ${APP} SHOP_NEW_MYSQL_DUMP_DATE)
