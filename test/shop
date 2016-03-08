@@ -55,7 +55,6 @@ if [ -z ${DATABASE_DESTROY+x} ] || [ "${DATABASE_DESTROY}" = true ]; then
   if [ -z "${DATE}" ]; then
     DATE=$(date "+%Y-%m-%d")
   fi
-
   sed 's|production_'"${COUNTRY_CODE}"'|'"${STAGE}-shop"'|g' "/database-dumps/production_${COUNTRY_CODE}_${DATE}.sql" | dokku mysql:import "${STAGE}-shop"
 fi
 
@@ -63,6 +62,11 @@ echo "-----> Generating configuration file"
 dokku run "${APP}" /app/bin/dokku/dokku-init
 
 echo "-----> Running database migrations"
+APPLICATION_ENV=\$(dokku config:get ${APP} APPLICATION_ENV)
+SHOP_COUNTRY_CODE=\$(dokku config:get ${APP} SHOP_COUNTRY_CODE)
 dokku run "${APP}" ./cli/dbupdate.sh --env="${APPLICATION_ENV}-${SHOP_COUNTRY_CODE}"
 
-ssh-dokku "export SHOP_INTERNAL_API_URL=\$(dokku url ${STAGE}-shop-new); export SHOP_URL=\$(dokku url ${APP}); dokku config:set ${APP} SHOP_INTERNAL_API_URL=${SHOP_INTERNAL_API_URL} SHOP_URL=${SHOP_URL}"
+echo "-----> Set up frontend/backend urls"
+SHOP_INTERNAL_API_URL=$(dokku url ${STAGE}-shop-new)
+SHOP_URL=$(dokku url ${APP})
+dokku config:set ${APP} SHOP_INTERNAL_API_URL=${SHOP_INTERNAL_API_URL} SHOP_URL=${SHOP_URL}
