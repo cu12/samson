@@ -64,7 +64,7 @@ dokku run "${APP}" /app/bin/dokku/dokku-init
 echo "-----> Running database migrations"
 APPLICATION_ENV=$(dokku config:get ${APP} APPLICATION_ENV)
 SHOP_COUNTRY_CODE=$(dokku config:get ${APP} SHOP_COUNTRY_CODE)
-dokku run "${APP}" ./cli/dbupdate.sh --env="${APPLICATION_ENV}-${SHOP_COUNTRY_CODE}"
+dokku run "${APP}" /app/cli/dbupdate.sh --env="${APPLICATION_ENV}-${SHOP_COUNTRY_CODE}"
 
 echo "-----> Set up frontend/backend urls"
 SHOP_INTERNAL_API_URL=$(dokku url ${STAGE}-shop-new)
