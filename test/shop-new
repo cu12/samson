@@ -15,22 +15,24 @@ echo "-----> Create and link MySQL container if necessary"
 if ! dokku mysql:list | awk '{ print $1 }' | egrep -q "^${STAGE}-shop$"; then
   ssh-dokku "export MYSQL_IMAGE_VERSION='5.6'; dokku mysql:create ${STAGE}-shop"
   dokku mysql:link "${STAGE}-shop" "${APP}" || true
-  dokku mysql:promote "${STAGE}-shop" "${APP}" || true
 fi
+dokku mysql:promote "${STAGE}-shop" "${APP}" || true
+
 
 echo "-----> Create and link Redis container if necessary"
 if ! dokku redis:list | awk '{ print $1 }' | egrep -q "^${APP}$"; then
   dokku redis:create "${APP}"
   dokku redis:link "${APP}" "${APP}" || true
-  dokku redis:promote "${APP}" "${APP}" || true
-
 fi
+dokku redis:promote "${APP}" "${APP}" || true
 
 echo "-----> Create and link Elasticsearch container"
 if dokku elasticsearch:list | awk '{ print $1 }' | egrep -q "^${APP}$"; then
   dokku elasticsearch:unlink "${APP}" "${APP}" || true
   echo "${APP}" | dokku elasticsearch:destroy "${APP}"
+fi
 
+if ! dokku elasticsearch:list | awk '{ print $1 }' | egrep -q "^${APP}$"; then
   # Create and link elasticsearch container
   ssh-dokku "export ELASTICSEARCH_IMAGE_VERSION='1.7';dokku elasticsearch:create ${APP}"
   dokku elasticsearch:link "${APP}" "${APP}"
@@ -56,7 +58,7 @@ printf 'Host *\n UserKnownHostsFile ~/.ssh/known_hosts\n StrictHostKeyChecking n
 
 echo "-----> Deploy application"
 git remote add dokku dokku@"${DOKKU_HOST}":"${APP}"
-git push -f dokku "${REVISION}":master
+git push dokku "${REVISION}":master
 
 if [ -z ${DATABASE_DESTROY+x} ] || [ "${DATABASE_DESTROY}" = true ]; then
   echo "-----> Import to MySQL database"
@@ -65,7 +67,8 @@ if [ -z ${DATABASE_DESTROY+x} ] || [ "${DATABASE_DESTROY}" = true ]; then
   if [ -z "${DATE}" ]; then
     DATE=$(date "+%Y-%m-%d")
   fi
-    sed 's|production_'"${COUNTRY_CODE}"'|'"${STAGE}-shop"'|g' "/database-dumps/production_${COUNTRY_CODE}_${DATE}.sql" | dokku mysql:import "${STAGE}-shop"
+
+  sed 's|production_'"${COUNTRY_CODE}"'|'"${STAGE}-shop"'|g' "/database-dumps/production_${COUNTRY_CODE}_${DATE}.sql" | dokku mysql:import "${STAGE}-shop"
 fi
 
 echo "-----> Install Elasticsearch plugins"
