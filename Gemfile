@@ -64,20 +64,6 @@ end
 group :sqlite do
   gem "sqlite3"
 end
-gem 'kaminari'
-gem 'soft_deletion', '~> 0.4'
-gem 'dalli', '~> 2.7.0'
-gem 'active_model_serializers', '~> 0.8.0'
-
-gem 'sawyer', '~> 0.5'
-gem 'sse-rails-engine', '~> 1.4'
-
-# Logging
-gem 'lograge'
-gem 'logstash-event'
-
-# Docker
-gem 'docker-api'
 
 group :production, :staging do
   gem 'airbrake', '~> 4.3.6' # different configuration format on 5.x
