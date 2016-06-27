@@ -61,10 +61,6 @@ group :postgres do
   gem 'pg'
 end
 
-group :sqlite do
-  gem "sqlite3"
-end
-
 group :production, :staging do
   gem 'airbrake', '~> 4.3.6' # different configuration format on 5.x
   gem 'newrelic_rpm'
